@@ -61,11 +61,11 @@ public class FlywheelTester extends OpMode {
         intakeLift.setPower(0.5);
     }
      
-    void putBallInIntake() {
+    void putBallIntoIntake() {
         moveIntake(BALL_INTO_INTAKE_DELTA);
     }
-    void putBallInIntake() {
-        moveIntake(BALL_INTO_INTAKE_DELTA);
+    void pullBallOutOfIntake() {
+        moveIntake(BALL_OUT_OF_INTAKE_DELTA);
     }
 
 
@@ -110,12 +110,8 @@ public class FlywheelTester extends OpMode {
         double flywheel_velocity = flywheel.getVelocity();
         
         if (gamepad1.leftBumperWasPressed()) {
+            putBallIntoIntake();
             isBallInIntake = true;
-            int liftPosition = intakeLift.getCurrentPosition();
-            int liftTarget = liftPosition + BALL_INTO_INTAKE_DELTA;
-            intakeLift.setTargetPosition(liftTarget);
-            intakeLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            intakeLift.setPower(0.5);
         }
         
         if (gateState == GateState.BASE) {
