@@ -1,78 +1,110 @@
-/* Copyright (c) 2025 FIRST. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted (subject to the limitations in the disclaimer below) provided that
- * the following conditions are met:
- *
- * Redistributions of source code must retain the above copyright notice, this list
- * of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright notice, this
- * list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * Neither the name of FIRST nor the names of its contributors may be used to endorse or
- * promote products derived from this software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
- * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-/*
- * This OpMode illustrates how to program your robot to drive field relative.  This means
- * that the robot drives the direction you push the joystick regardless of the current orientation
- * of the robot.
- *
- * This OpMode assumes that you have four mecanum wheels each on its own motor named:
- *   front_left_motor, front_right_motor, back_left_motor, back_right_motor
- *
- *   and that the left motors are flipped such that when they turn clockwise the wheel moves backwards
- *
- * Use Android Studio to Copy this Class, and Paste it into your team's code folder with a new name.
- * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
- *
- */
+
+
 @TeleOp(name = "Decode Teleop", group = "AAFirst Group")
 
 public class DecodeTeleop extends OpMode {
-    // This declares the motors needed
-    DcMotor frontLeftDrive;
-    DcMotor frontRightDrive;
-    DcMotor backLeftDrive;
-    DcMotor backRightDrive;
-    DcMotor intakeFront;
-    DcMotor intakeLift;
-    private Servo gate = null;
-    private Servo kicker = null;
-    double flapperPower = 0;
-    
+
+    ////////////////////////////////////
+    // Hardware interface
+    ////////////////////////////////////
+
+    public DcMotor frontLeftDrive = null;
+    public DcMotor frontRightDrive = null;
+    public DcMotor backLeftDrive = null;
+    public DcMotor backRightDrive = null;
+    public DcMotor intakeFront = null;
+    public DcMotor intakeLift = null;
+    public Servo gate = null;
+    public Servo kicker = null;
+    public DcMotorEx flywheel = null;
+
+    ////////////////////////////////////
+    // Important Constants
+    ////////////////////////////////////
+
     public static final double GATE_OPEN_POSITION = 0.5785;
     public static final double GATE_CLOSED_POSITION = 0.4783;
+    public static final double GATE_CLOSE_DELAY = 0.25; //seconds
+
     public static final double KICKER_TOP_POSITION = 0.2484;
     public static final double KICKER_BOTTOM_POSITION = 0.68;
+    public static final double KICKER_CLOSE_DELAY = 0.75; //seconds
 
+    public static final int BALL_INTO_INTAKE_DELTA = -300;
+    public static final int BALL_OUT_OF_INTAKE_DELTA = 550;
 
-    // This declares the IMU needed to get the current direction the robot is facing
-    IMU imu;
+    public static final double SHOOTING_POWER = 0.55;
+
+    ////////////////////////////////////
+    // State info
+    ////////////////////////////////////
+
+    public double flapperPower = 0;
+    public boolean intakeAutoIn = false;
+
+    public enum GateState {
+        BASE,
+        WAIT_FOR_GATE,
+        WAIT_FOR_KICKER,
+    }
+    GateState gateState = GateState.BASE;
+
+    public double time_when_pressed = 0;
+    public boolean isBallInIntake = false;
+
+    ////////////////////////////////////
+    // UTILITY: Kicker movement
+    ////////////////////////////////////
+
+    public void kickerUp() {
+        kicker.setPosition(KICKER_TOP_POSITION);
+    }
+    public void kickerDown() {
+        kicker.setPosition(KICKER_BOTTOM_POSITION);
+    }
+
+    ////////////////////////////////////
+    // UTILITY: Gate movement
+    ////////////////////////////////////
+
+    public void gateOpen() {
+        gate.setPosition(GATE_OPEN_POSITION);
+    }
+    public void gateClose() {
+        gate.setPosition(GATE_CLOSED_POSITION);
+    }
+
+    ////////////////////////////////////
+    // UTILITY: Ball in and out of intake
+    ////////////////////////////////////
+
+    public void moveIntake(int delta) {
+        int liftPosition = intakeLift.getCurrentPosition();
+        int liftTarget = liftPosition + delta;
+        intakeLift.setTargetPosition(liftTarget);
+        intakeLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        intakeLift.setPower(0.5);
+    }
+    public void putBallIntoIntake() {
+        moveIntake(BALL_INTO_INTAKE_DELTA);
+        isBallInIntake = true;
+    }
+    public void pullBallOutOfIntake() {
+        moveIntake(BALL_OUT_OF_INTAKE_DELTA);
+        isBallInIntake = false;
+    }
+
+    ////////////////////////////////////
+    // OPMODE: init
+    ////////////////////////////////////
 
     @Override
     public void init() {
@@ -80,82 +112,102 @@ public class DecodeTeleop extends OpMode {
         frontRightDrive = hardwareMap.get(DcMotor.class, "frontRight");
         backLeftDrive = hardwareMap.get(DcMotor.class, "backLeft");
         backRightDrive = hardwareMap.get(DcMotor.class, "backRight");
-        
+
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
         intakeFront = hardwareMap.get(DcMotor.class, "intakeFront");
         intakeLift = hardwareMap.get(DcMotor.class, "intakeLift");
-        
+
         gate = hardwareMap.get(Servo.class, "gate");
         kicker = hardwareMap.get(Servo.class, "kicker");
 
+        gateClose();
+        kickerDown();
 
-        // We set the left motors in reverse which is needed for drive trains where the left
-        // motors are opposite to the right ones.
         backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
         frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
         intakeFront.setDirection(DcMotor.Direction.FORWARD);
         intakeLift.setDirection(DcMotor.Direction.FORWARD);
 
-
-        // This uses RUN_USING_ENCODER to be more accurate.   If you don't have the encoder
-        // wires, you should remove these
-        /*
-        frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        frontRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        */
-
-        imu = hardwareMap.get(IMU.class, "imu");
-        // This needs to be changed to match the orientation on your robot
-        RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
-                RevHubOrientationOnRobot.LogoFacingDirection.UP;
-        RevHubOrientationOnRobot.UsbFacingDirection usbDirection =
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
-
-        RevHubOrientationOnRobot orientationOnRobot = new
-                RevHubOrientationOnRobot(logoDirection, usbDirection);
-        imu.initialize(new IMU.Parameters(orientationOnRobot));
+        flywheel.setDirection(DcMotor.Direction.REVERSE);
+        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
+
+    ////////////////////////////////////
+    // OPMODE: loop
+    ////////////////////////////////////
 
     @Override
     public void loop() {
-        telemetry.addLine("Moving the right joystick left and right turns the robot");
+        telemetry.addLine("Right trigger for intake");
+        telemetry.addLine("Left trigger for reverse intake");
+        telemetry.addLine("Right bumper to stop intake");
+
+        ////////////////////////////////////
+        // Intake
 
         if (gamepad1.right_trigger > 0.5) {
-            // Intakes the ball in
+            // Intake is locked in the forward position
             flapperPower = 1;
+            intakeAutoIn = true;
+            intakeLift.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         }
-        if (gamepad1.left_trigger > 0.5){
-            // Outakes the ball
-            flapperPower = -1;
+        if (gamepad1.left_trigger > 0.3){
+            // Intake is now controlled by the left trigger
+            intakeAutoIn = false;
+            intakeLift.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         }
-        if (gamepad1.right_bumper){
-            // Stops
-            flapperPower = 0;
+        if (intakeAutoIn == false) {
+            // Intake power equals how much left trigger is pressed down
+            flapperPower = -gamepad1.left_trigger;
         }
-        driveFieldRelative(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
         intakeFront.setPower(flapperPower);
         intakeLift.setPower(flapperPower * 0.5);
 
-    }
+        ////////////////////////////////////
+        // Flywheel On/Off
 
-    // This routine drives the robot field relative
-    private void driveFieldRelative(double forward, double right, double rotate) {
-        // First, convert direction being asked to drive to polar coordinates
-        double theta = Math.atan2(forward, right);
-        double r = Math.hypot(right, forward);
+        if (gamepad1.dpad_up) {
+            flywheel.setPower(SHOOTING_POWER);
+        }
+        if (gamepad1.dpad_down) {
+            flywheel.setPower(0);
+        }
 
-        // Second, rotate angle by the angle the robot is pointing
-        theta = AngleUnit.normalizeRadians(theta -
-                imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS));
-        theta=0;
+        ////////////////////////////////////
+        // Shooting Process
 
-        // Third, convert back to cartesian
-        double newForward = r * Math.sin(theta);
-        double newRight = r * Math.cos(theta);
+        if (gamepad1.leftBumperWasPressed()) {
+            putBallIntoIntake();
+        }
 
-        // Finally, call the drive method with robot relative forward and right amounts
-        drive(forward, right, rotate);
+        if (gateState == GateState.BASE) {
+            if (gamepad1.rightBumperWasPressed()) {
+                //Now we will transition to the next state
+                time_when_pressed = getRuntime();
+                gateOpen();
+                gateState = GateState.WAIT_FOR_GATE;
+            }
+        } else if (gateState == GateState.WAIT_FOR_GATE) {
+            if (getRuntime() > time_when_pressed + GATE_CLOSE_DELAY) {
+                gateClose();
+                if (isBallInIntake == true) {
+                    pullBallOutOfIntake();
+                    gateState = GateState.BASE;
+                } else {
+                    kickerUp();
+                    gateState = GateState.WAIT_FOR_KICKER;
+                }
+            }
+        } else if (gateState == GateState.WAIT_FOR_KICKER) {
+            if (getRuntime() > time_when_pressed + KICKER_CLOSE_DELAY) {
+                kickerDown();
+                gateState = GateState.BASE;
+            }
+        }
+
+        // Driving
+        drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+
     }
 
     // Thanks to FTC16072 for sharing this code!!
