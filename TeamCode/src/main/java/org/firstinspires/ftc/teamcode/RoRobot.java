@@ -1142,7 +1142,7 @@ public class RoRobot {
         double pointX = pointPose.position.x;
         double pointY = pointPose.position.y;
         double vC = 0;
-        double vDiff = 0;
+        double vDiff;
         if (2*pointX<Math.abs(pointY)) {
             // turn
             vDiff = vDiffMax * Math.signum(pointY);

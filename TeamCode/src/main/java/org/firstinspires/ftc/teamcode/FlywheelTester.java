@@ -79,6 +79,7 @@ public class FlywheelTester extends OpMode {
     ////////////////////////////////////
 
     public void moveIntake(int delta) {
+        intakeLift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         int liftPosition = intakeLift.getCurrentPosition();
         int liftTarget = liftPosition + delta;
         intakeLift.setTargetPosition(liftTarget);

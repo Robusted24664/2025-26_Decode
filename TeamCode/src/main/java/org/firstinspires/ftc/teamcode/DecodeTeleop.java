@@ -41,7 +41,7 @@ public class DecodeTeleop extends OpMode {
     public static final int BALL_INTO_INTAKE_DELTA = -300;
     public static final int BALL_OUT_OF_INTAKE_DELTA = 550;
 
-    public static final double SHOOTING_POWER = 0.55;
+    public static final double SHOOTING_POWER = 0.498;
 
     ////////////////////////////////////
     // State info
@@ -87,6 +87,7 @@ public class DecodeTeleop extends OpMode {
     ////////////////////////////////////
 
     public void moveIntake(int delta) {
+        intakeLift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         int liftPosition = intakeLift.getCurrentPosition();
         int liftTarget = liftPosition + delta;
         intakeLift.setTargetPosition(liftTarget);
@@ -133,6 +134,15 @@ public class DecodeTeleop extends OpMode {
     }
 
     ////////////////////////////////////
+    // OPMODE: Start
+    ////////////////////////////////////
+
+    @Override
+    public void start() {
+        flywheel.setPower(SHOOTING_POWER);
+    }
+
+    ////////////////////////////////////
     // OPMODE: loop
     ////////////////////////////////////
 
@@ -176,9 +186,13 @@ public class DecodeTeleop extends OpMode {
         ////////////////////////////////////
         // Shooting Process
 
+        /*
+        nathan says we dont need the chamber
         if (gamepad1.leftBumperWasPressed()) {
             putBallIntoIntake();
         }
+        */
+
 
         if (gateState == GateState.BASE) {
             if (gamepad1.rightBumperWasPressed()) {
@@ -206,12 +220,15 @@ public class DecodeTeleop extends OpMode {
         }
 
         // Driving
-        drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+        drive(-gamepad1.left_stick_y,
+                gamepad1.left_stick_x,
+                gamepad1.right_stick_x,
+                gamepad1.left_stick_button);
 
     }
 
     // Thanks to FTC16072 for sharing this code!!
-    public void drive(double forward, double right, double rotate) {
+    public void drive(double forward, double right, double rotate, boolean turbo) {
         // This calculates the power needed for each wheel based on the amount of forward,
         // strafe right, and rotate
         double frontLeftPower  = - forward + right - rotate;
@@ -220,7 +237,7 @@ public class DecodeTeleop extends OpMode {
         double backLeftPower   = - forward - right - rotate;
 
         double maxPower = 1.0;
-        double maxSpeed = 1.0;  // make this slower for outreaches
+        double maxSpeed = (turbo) ? 1.0 : 0.65;
 
         // This is needed to make sure we don't pass > 1.0 to any wheel
         // It allows us to keep all of the motors in proportion to what they should
