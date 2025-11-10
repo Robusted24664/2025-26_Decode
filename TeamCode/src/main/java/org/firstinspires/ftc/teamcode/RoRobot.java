@@ -166,6 +166,53 @@ public class RoRobot {
         kickerDown();
     }
 
+    ////////////////////////////////////
+    // UTILITY: Standard driving parameters
+    ////////////////////////////////////
+    ///
+    /// Note: these parameters probably need to be tweaked every year
+
+    public DriveParameters getDriveParametersForSlowForward() {
+        DriveParameters slowForward = new DriveParameters();
+        slowForward.vCMax = 0.25;
+        slowForward.vDiffMax = 0.35;
+        slowForward.slowDistance = 0;
+        slowForward.threshold = 1;
+        slowForward.direction = DRIVE_DIRECTION.FORWARD;
+        return slowForward;
+    }
+
+    public DriveParameters getDriveParametersForMediumForward() {
+        DriveParameters mediumForward = new DriveParameters();
+        mediumForward.vCMax = 0.6;
+        mediumForward.vDiffMax = 0.55;
+        mediumForward.slowDistance = 5;
+        mediumForward.threshold = 3;
+        mediumForward.direction = DRIVE_DIRECTION.FORWARD;
+        return mediumForward;
+    }
+
+    public DriveParameters getDriveParametersForFastForward() {
+        DriveParameters fastForward = new DriveParameters();
+        fastForward.vCMax = 0.7;
+        fastForward.vDiffMax = 0.65;
+        fastForward.slowDistance = 5;
+        fastForward.threshold = 4;
+        fastForward.direction = DRIVE_DIRECTION.FORWARD;
+        return fastForward;
+    }
+
+    public DriveParameters getDriveParametersForTurbo() {
+        DriveParameters turbo = new DriveParameters();
+        turbo.vCMax = 2;
+        turbo.vDiffMax = 1.5;
+        turbo.slowDistance = 8;
+        turbo.threshold = 6;
+        turbo.direction = DRIVE_DIRECTION.FORWARD;
+        return turbo;
+    }
+
+
     ////////////////////////////////////////////////////////////////////////
     // #####################################################################
     ////////////////////////////////////////////////////////////////////////
